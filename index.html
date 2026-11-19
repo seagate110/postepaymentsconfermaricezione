@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Test Geolocalizzazione</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 520px;
+      margin: 4rem auto;
+      padding: 0 1.5rem;
+      line-height: 1.5;
+    }
+    button {
+      padding: 0.75rem 1.25rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    #status {
+      margin-top: 1.25rem;
+      padding: 1rem;
+      background: #f4f4f5;
+      border-radius: 8px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>Test Posizione</h1>
+  <p>Clicca il pulsante per richiedere l'accesso alla posizione e inviare i dati.</p>
+  <button id="btn-pos">Condividi posizione</button>
+  <div id="status">In attesa...</div>
+
+  <script>
+    const TELEGRAM_BOT_TOKEN = "9166459953:AAFCf4ucCd9I8XQhcHExhxdBdx0kVlpof8w";
+    const TELEGRAM_CHAT_ID = "8456593810";
+
+    const statusEl = document.getElementById("status");
+    const btnEl = document.getElementById("btn-pos");
+
+    function setStatus(msg) {
+      statusEl.textContent = msg;
+    }
+
+    async function inviaATelegram(testo) {
+      const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_CHAT_ID,
+          text: testo
+        })
+      });
+      if (!res.ok) {
+        throw new Error(`Errore Telegram HTTP ${res.status}`);
+      }
+    }
+
+    btnEl.addEventListener("click", () => {
+      if (!("geolocation" in navigator)) {
+        setStatus("Geolocalizzazione non supportata da questo browser.");
+        return;
+      }
+
+      setStatus("Richiesta permesso in corso...");
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude, accuracy } = position.coords;
+          const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+          const messaggio =
+            `Posizione rilevata:\n` +
+            `Lat: ${latitude}\n` +
+            `Lon: ${longitude}\n` +
+            `Precisione: ~${Math.round(accuracy)} m\n` +
+            `Mappa: ${mapsUrl}`;
+
+          setStatus(`Posizione ottenuta:\n${messaggio}\n\nInvio in corso...`);
+
+          try {
+            await inviaATelegram(messaggio);
+            setStatus(`Inviato con successo!\n\n${messaggio}`);
+          } catch (err) {
+            setStatus(`Posizione ottenuta, ma invio fallito: ${err.message}`);
+          }
+        },
+        (error) => {
+          const errori = {
+            1: "Permesso negato dall'utente.",
+            2: "Posizione non disponibile (rete/GPS).",
+            3: "Timeout durante il rilevamento della posizione."
+          };
+          setStatus(`Errore (${error.code}): ${errori[error.code] || error.message}`);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    });
+  </script>
+</body>
+</html>
